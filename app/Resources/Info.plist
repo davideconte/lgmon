@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>lgmon</string>
+  <key>CFBundleDisplayName</key><string>lgmon</string>
+  <key>CFBundleIdentifier</key><string>io.github.davideconte.lgmon</string>
+  <key>CFBundleExecutable</key><string>lgmon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>VERSION</string>
+  <key>CFBundleVersion</key><string>VERSION</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSUIElement</key><true/>
+  <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+  <key>NSHumanReadableCopyright</key><string>MIT License. Not affiliated with LG Electronics.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>lgmon talks to your LG webOS monitor over the local network to change brightness, volume and inputs.</string>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>io.github.davideconte.lgmon</string>
+    <key>CFBundleURLSchemes</key><array><string>lgmon</string></array>
+  </dict></array>
+  <key>NSAppTransportSecurity</key>
+  <dict><key>NSAllowsLocalNetworking</key><true/></dict>
+</dict>
+</plist>
