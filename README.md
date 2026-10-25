@@ -20,7 +20,7 @@ But they run webOS, and webOS listens on your network. **lgmon is a tiny native 
 <table>
 <tr>
 <td width="58%" valign="top">
-<img src="docs/hud.png" alt="Brightness indicator, styled after the macOS one" width="100%">
+<img src="docs/demo.gif" alt="Brightness indicator, styled after the macOS one, animating" width="100%">
 <p><b>Feels like part of macOS.</b> The brightness indicator is built like the system one: Liquid Glass, springs in from the top right corner, the level glides between values, percentage included.</p>
 </td>
 <td width="42%" valign="top">

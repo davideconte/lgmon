@@ -12,6 +12,7 @@ final class HUD {
     private var glass: NSView!
     private let title = NSTextField(labelWithString: "")
     private let percent = NSTextField(labelWithString: "")
+    private let percentBox = NSView()
     private let subtitle = NSTextField(labelWithString: "")
     private let level = LevelView()
     private let low = NSImageView()
@@ -45,12 +46,17 @@ final class HUD {
             v.contentTintColor = .secondaryLabelColor
         }
         title.frame = NSRect(x: 16, y: size.height - 30, width: size.width - 80, height: 18)
-        percent.frame = NSRect(x: size.width - 66, y: size.height - 30, width: 50, height: 18)
+        // digits roll inside this clipping box, not over the sun icon
+        percentBox.wantsLayer = true
+        percentBox.layer?.masksToBounds = true
+        percentBox.frame = NSRect(x: size.width - 66, y: size.height - 30, width: 50, height: 18)
+        percent.frame = percentBox.bounds
+        percentBox.addSubview(percent)
         subtitle.frame = NSRect(x: 16, y: 12, width: size.width - 32, height: 18)
         low.frame = NSRect(x: 14, y: 14, width: 18, height: 18)
         high.frame = NSRect(x: size.width - 34, y: 13, width: 20, height: 20)
         level.frame = NSRect(x: 42, y: 8, width: size.width - 84, height: 26)
-        [title, percent, subtitle, low, high, level].forEach(content.addSubview)
+        [title, percentBox, subtitle, low, high, level].forEach(content.addSubview)
 
         // container stays put; the glass inside is what we scale and fade
         let container = NSView(frame: content.frame)
@@ -91,7 +97,7 @@ final class HUD {
         title.stringValue = t
         subtitle.stringValue = s ?? ""
         subtitle.isHidden = value != nil
-        [low, high, level, percent].forEach { $0.isHidden = value == nil }
+        [low, high, level, percentBox].forEach { $0.isHidden = value == nil }
 
         let vf = (screen ?? NSScreen.main)?.visibleFrame ?? .zero
         p.setFrameOrigin(NSPoint(x: vf.maxX - size.width - 10, y: vf.maxY - size.height - 8))
