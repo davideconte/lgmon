@@ -1,0 +1,4 @@
+#!/bin/bash
+# Resolves the repo through the ~/.local/bin symlink and runs the CLI in its venv.
+DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec "$DIR/.venv/bin/python" "$DIR/lgmon.py" "$@"
