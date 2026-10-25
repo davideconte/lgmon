@@ -72,15 +72,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case "standby": monitor.standby()
             case "wake": monitor.wake()
             case "menu": statusItem.button?.performClick(nil)
+            case "debug":
+                log("audio output: \(SystemInfo.defaultOutputName() ?? "nil"), goes to monitor: \(SystemInfo.audioGoesToMonitor)")
+                if arg == "volkey" { postVolumeKey() }
             default: break
             }
+        }
+    }
+
+    /// Synthetic volume-up press, to test the key path without touching the keyboard.
+    private func postVolumeKey() {
+        for down in [true, false] {
+            let data1 = (0 << 16) | ((down ? 0xA : 0xB) << 8)
+            let ev = NSEvent.otherEvent(with: .systemDefined, location: .zero,
+                                        modifierFlags: NSEvent.ModifierFlags(rawValue: down ? 0xA00 : 0xB00),
+                                        timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1)
+            ev?.cgEvent?.post(tap: .cghidEventTap)
         }
     }
 
     // MARK: keys
 
     private func startKeys(prompt: Bool) {
-        if SystemInfo.accessibilityTrusted(prompt: prompt), keys.start() { return }
+        if SystemInfo.accessibilityTrusted(prompt: prompt), keys.start() { log("key tap running"); return }
+        log("key tap not running (accessibility trusted: \(SystemInfo.accessibilityTrusted(prompt: false)))")
         // wait for the user to grant Accessibility, then start without a restart
         permissionTimer?.invalidate()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] t in

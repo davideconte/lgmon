@@ -35,7 +35,7 @@ final class KeyTap {
         guard tap == nil else { return true }
         let mask = (1 << 14) | (1 << CGEventType.keyDown.rawValue)   // 14 = NSEvent.EventType.systemDefined
         let me = Unmanaged.passUnretained(self).toOpaque()
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+        guard let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
                                           options: .defaultTap, eventsOfInterest: CGEventMask(mask),
                                           callback: keyTapCallback, userInfo: me) else { return false }
         self.tap = tap
@@ -82,7 +82,11 @@ final class KeyTap {
         }
 
         guard let press else { return false }
-        guard let action = decide?(press) else { return false }
+        let action = decide?(press)
+        if UserDefaults.standard.bool(forKey: "debugKeys") {
+            log("press \(press.key) down=\(press.down) -> \(action.map { "\($0)" } ?? "pass through")")
+        }
+        guard let action else { return false }
         if press.down {
             if case .mute = action, press.isRepeat { return true }
             if case .back = action, press.isRepeat { return true }
