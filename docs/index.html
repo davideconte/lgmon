@@ -52,7 +52,7 @@
     background: radial-gradient(120% 90% at 70% 10%, #3b3b52 0%, #1b1b26 45%, #0f0f14 100%); border: 1px solid var(--line); }
   .stage .menubar { position: absolute; top: 0; left: 0; right: 0; height: 30px; background: rgba(20,20,26,.55); backdrop-filter: blur(10px); display: flex; justify-content: flex-end; align-items: center; gap: 18px; padding: 0 16px; font-size: 13px; color: #e8e8ee; }
   .stage .sun { background: rgba(255,255,255,.14); border-radius: 6px; padding: 2px 8px; }
-  .stage .hud { position: absolute; top: 40px; right: 12px; width: 62%; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .stage .hud { position: absolute; top: 40px; right: 12px; width: 62%; display: block; border-radius: 6.85% / 31.25%; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
   .stage .menu { position: absolute; top: 36px; left: 8%; width: 36%; border-radius: 10px; box-shadow: 0 16px 50px rgba(0,0,0,.55); }
 
   section { padding: 64px 0; border-top: 1px solid #1d1d24; }
@@ -121,7 +121,7 @@
     <div class="stage" aria-label="lgmon on a Mac: brightness indicator and menu bar menu">
       <div class="menubar"><span class="sun">&#9728;&#xFE0E;</span><span>Sun 9:41</span></div>
       <img class="menu" src="menu.png" alt="lgmon menu bar menu">
-      <img class="hud" src="hud.png" alt="Brightness indicator in the macOS style">
+      <video class="hud" src="demo.mp4" poster="hud.png" autoplay muted loop playsinline aria-label="Brightness indicator in the macOS style, animating"></video>
     </div>
   </header>
 
@@ -170,5 +170,12 @@ $ lgmon input
     <a href="https://github.com/davideconte/lgmon">github.com/davideconte/lgmon</a>
   </footer>
 </div>
+<script>
+  // respect Reduce Motion: show the still frame instead
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const v = document.querySelector('.stage .hud');
+    v.removeAttribute('autoplay'); v.pause();
+  }
+</script>
 </body>
 </html>
