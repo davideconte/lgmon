@@ -25,7 +25,7 @@ But they run webOS, and webOS listens on your network. **lgmon is a tiny native 
 </td>
 <td width="42%" valign="top">
 <img src="docs/menu.png" alt="Menu bar menu" width="100%">
-<p><b>Menu bar.</b> Brightness and volume sliders, input switching, the monitor's apps, screen off, standby.</p>
+<p><b>Menu bar.</b> Brightness and volume sliders that follow the monitor live, input switching, the monitor's apps, Eye Comfort, screen off, standby.</p>
 </td>
 </tr>
 </table>
@@ -46,7 +46,7 @@ That's it. lgmon starts at login and lives in the menu bar as a small sun.
 | <kbd>⌥</kbd> + volume up / down | Monitor brightness. Add <kbd>⇧</kbd> for fine steps |
 | <kbd>⌃</kbd><kbd>⌥</kbd><kbd>↑</kbd> / <kbd>↓</kbd> | Monitor brightness, for keyboards without media keys |
 | Brightness keys | Monitor brightness, when the pointer is on the LG screen (Apple keyboards) |
-| Volume keys, mute | The monitor's speakers, when your Mac sends audio to it. macOS can't change the volume over HDMI or DisplayPort by itself |
+| Volume keys, mute | The monitor's speakers, when your Mac sends audio to it (macOS can't change the volume over HDMI or DisplayPort by itself). One step per tap, faster when you hold the key |
 | <kbd>⌃</kbd><kbd>⌥</kbd><kbd>↩</kbd> | Back to the Mac's input, after you switched input or opened a monitor app |
 
 Each one can be turned off from **Settings** in the menu.
@@ -82,6 +82,8 @@ Any LG monitor that runs **webOS** should work, since lgmon uses the standard we
 
 Got one of the 🟡 models? [Open an issue](../../issues) with the result, success or not, and it moves to the tested row.
 
+**On Windows?** Have a look at [LGBrillo](https://github.com/xvexera/LGBrillo), a separate open source tray app that does the same over the network.
+
 The app needs macOS 13 or later; on macOS 26 and later the indicator uses Liquid Glass, earlier versions get the classic blur.
 
 ## How it works
@@ -97,6 +99,7 @@ flowchart LR
 - **Discovery:** SSDP finds the monitor and remembers its IP and MAC. If DHCP gives it a new address, lgmon finds it again on its own.
 - **Pairing:** the first connection asks for permission on the monitor; the key is stored in `~/.config/lgmon/`.
 - **Brightness** is the panel's real backlight (`picture.backlight`), the same setting as the monitor's own menu, not a dimming overlay. webOS only lets you write it through its internal luna API, which lgmon reaches through the well-known alert trick.
+- **Live sync:** lgmon subscribes to the monitor's backlight and audio status, so changes made with the joystick or the remote show up in the menu right away.
 - **One connection, kept open**, so a key press reaches the monitor in about a tenth of a second. Held keys are coalesced: only the latest value is sent.
 - Built in Swift with AppKit, no dependencies. The webOS protocol details come from [bscpylgtv](https://github.com/chros73/bscpylgtv) and aiopylgtv (MIT), which also power the command line tool.
 

@@ -30,6 +30,7 @@ final class WebOSClient: NSObject, URLSessionWebSocketDelegate {
     private var nextId = 1
     private var pending: [String: (Result<[String: Any], Error>) -> Void] = [:]
     private var registerDone: ((Result<String, Error>) -> Void)?
+    private var subscriptions: [String: ([String: Any]) -> Void] = [:]
     private(set) var isOpen = false
 
     init(host: String, clientKey: String?) {
@@ -104,6 +105,16 @@ final class WebOSClient: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    /// Pushes every change of `uri` to `handler` (on the main queue) until the socket closes.
+    func subscribe(_ uri: String, _ payload: [String: Any] = [:], _ handler: @escaping ([String: Any]) -> Void) {
+        queue.async {
+            let id = "sub\(self.nextId)"
+            self.nextId += 1
+            self.subscriptions[id] = handler
+            self.send(["id": id, "type": "subscribe", "uri": "ssap://\(uri)", "payload": payload])
+        }
+    }
+
     /// Internal luna API, reachable only through an alert's callbacks (well-known webOS trick).
     /// Needed for writing settings such as the backlight. Results are not readable.
     func luna(_ uri: String, _ params: [String: Any]) async throws {
@@ -166,6 +177,10 @@ final class WebOSClient: NSObject, URLSessionWebSocketDelegate {
             } else if type == "response", payload["pairingType"] as? String == "PROMPT", clientKey == nil {
                 DispatchQueue.main.async { self.onPairingPrompt?() }
             }
+            return
+        }
+        if let sub = subscriptions[id] {
+            if type == "response" { DispatchQueue.main.async { sub(payload) } }
             return
         }
         guard let done = pending.removeValue(forKey: id) else { return }

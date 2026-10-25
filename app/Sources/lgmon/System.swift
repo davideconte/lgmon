@@ -15,6 +15,7 @@ enum L {
     static let apps = t("Monitor Apps", "App del monitor")
     static let backToMac = t("Back to This Mac", "Torna al Mac")
     static let screenOff = t("Turn Screen Off", "Spegni schermo")
+    static let eyeCare = t("Eye Comfort (Less Blue Light)", "Comfort visivo (meno luce blu)")
     static let standby = t("Standby", "Standby")
     static let wake = t("Wake Monitor", "Accendi monitor")
     static let settings = t("Settings", "Impostazioni")

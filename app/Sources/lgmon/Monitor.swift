@@ -76,6 +76,7 @@ final class Monitor {
             let c = try await task.value
             client = c
             status = .ready
+            listen(c)
             return c
         } catch {
             if case .pairing = status {} else if case .choose = status {} else {
@@ -87,10 +88,10 @@ final class Monitor {
 
     private func openClient() async throws -> WebOSClient {
         if let d = device {
-            // the very first attempt can fail while macOS asks for Local Network access: retry once
-            for attempt in 1...2 {
+            // right after launch macOS can hold back the local network for a few seconds: keep trying
+            for attempt in 1...4 {
                 do { return try await open(d) } catch { log("open \(d.ip) attempt \(attempt) failed: \(error)") }
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
             }
         }
         // first run, or the IP changed: look around
@@ -137,6 +138,28 @@ final class Monitor {
     }
 
     // MARK: reading
+
+    /// Live updates: changes made with the monitor's joystick or remote show up in the menu at once.
+    private func listen(_ c: WebOSClient) {
+        c.subscribe("settings/getSystemSettings", ["category": "picture", "keys": ["backlight"]]) { [weak self] p in
+            MainActor.assumeIsolated {
+                guard let self, self.idle, let s = p["settings"] as? [String: Any] else { return }
+                if let b = (s["backlight"] as? Int) ?? Int("\(s["backlight"] ?? "")") { log("monitor says brightness \(b)"); self.brightness = b; self.changed() }
+            }
+        }
+        c.subscribe("audio/getStatus") { [weak self] p in
+            MainActor.assumeIsolated {
+                guard let self, self.idle else { return }
+                let v = (p["volume"] as? Int) ?? ((p["volumeStatus"] as? [String: Any])?["volume"] as? Int)
+                if let v { self.volume = v }
+                if let m = p["mute"] as? Bool { self.muted = m }
+                self.changed()
+            }
+        }
+    }
+
+    /// Pushes that arrive while we are writing would make the value jump back: ignore them.
+    private var idle: Bool { Date().timeIntervalSince(lastWrite) > 2 && brightnessTarget == nil && volumeTarget == nil && !flushing }
 
     func refresh() async {
         guard Date().timeIntervalSince(lastWrite) > 5 else { return }
@@ -263,6 +286,16 @@ final class Monitor {
         guard let home = homeInput ?? inputs.first(where: { $0.label.lowercased() == "mac" })?.appId else { return }
         currentApp = home
         Task { try? await run { try await $0.request("system.launcher/launch", ["id": home]) } }
+    }
+
+    /// Can only be set over the network, not read: we remember the last choice.
+    var eyeCare: Bool { UserDefaults.standard.bool(forKey: "eyeCare") }
+
+    func setEyeCare(_ on: Bool) {
+        UserDefaults.standard.set(on, forKey: "eyeCare")
+        changed()
+        Task { try? await run { try await $0.luna("com.webos.settingsservice/setSystemSettings",
+                                                  ["category": "picture", "settings": ["eyeComfortMode": on ? "on" : "off"]]) } }
     }
 
     func turnScreenOff() {

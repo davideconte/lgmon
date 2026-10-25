@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var brightnessSlider: SliderItemView?
     private var volumeSlider: SliderItemView?
     private var permissionTimer: Timer?
+    private var volumeStreak = 0
+    private var lastVolumeKey = Date.distantPast
 
     func applicationDidFinishLaunching(_ note: Notification) {
         Settings.firstLaunchDefaults()
@@ -111,6 +113,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// 1 per tap; faster taps or a held key speed up to 2, then 3.
+    private func volumeStep() -> Int {
+        let now = Date()
+        volumeStreak = now.timeIntervalSince(lastVolumeKey) < 0.35 ? volumeStreak + 1 : 0
+        lastVolumeKey = now
+        switch volumeStreak {
+        case ..<4: return 1
+        case ..<10: return 2
+        default: return 3
+        }
+    }
+
     private func perform(_ action: KeyTap.Action) {
         switch action {
         case .brightness(let dir, let fine):
@@ -119,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         case .volume(let dir, let fine):
             // no indicator: the monitor shows its own
-            monitor.adjustVolume(by: dir * (fine ? 1 : 2))
+            monitor.adjustVolume(by: dir * (fine ? 1 : volumeStep()))
         case .mute:
             monitor.toggleMute()
         case .back:
@@ -187,6 +201,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(back)
         menu.addItem(.separator())
 
+        let eye = item(L.eyeCare, symbol: "eye") { [weak self] in
+            guard let self else { return }
+            self.monitor.setEyeCare(!self.monitor.eyeCare)
+        }
+        eye.state = monitor.eyeCare ? .on : .off
+        menu.addItem(eye)
         menu.addItem(item(L.screenOff, symbol: "moon") { [weak self] in self?.monitor.turnScreenOff() })
         menu.addItem(item(L.standby, symbol: "power") { [weak self] in self?.monitor.standby() })
         if monitor.device?.mac != nil, monitor.status != .ready {
