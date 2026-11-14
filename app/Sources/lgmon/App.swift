@@ -8,8 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var brightnessSlider: SliderItemView?
     private var volumeSlider: SliderItemView?
     private var permissionTimer: Timer?
-    private var volumeStreak = 0
-    private var lastVolumeKey = Date.distantPast
+    private var volumeHold: Timer?
 
     func applicationDidFinishLaunching(_ note: Notification) {
         Settings.firstLaunchDefaults()
@@ -26,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         keys.decide = { [weak self] press in self?.decide(press) }
         keys.perform = { [weak self] action in self?.perform(action) }
+        keys.released = { [weak self] in self?.stopVolume() }
         startKeys(prompt: true)
 
         // pick up changes made with the monitor's own joystick or remote
@@ -57,7 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     if let b = monitor.brightness { HUD.shared.showBrightness(b, on: SystemInfo.screenUnderMouse()) }
                 }
             case "volume":
-                if let arg, let v = level(monitor.volume, arg) { monitor.setVolume(v) }
+                if let arg, let v = level(monitor.volume, arg) {
+                    monitor.setVolume(v)
+                    if let v = monitor.volume { HUD.shared.showVolume(v, muted: false, on: SystemInfo.screenUnderMouse()) }
+                }
             case "mute": monitor.toggleMute()
             case "input":
                 if let arg, let i = monitor.inputs.first(where: { $0.id.lowercased() == arg.lowercased() || $0.label.lowercased() == arg.lowercased() }) {
@@ -75,6 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case "debug":
                 log("audio output: \(SystemInfo.defaultOutputName() ?? "nil"), goes to monitor: \(SystemInfo.audioGoesToMonitor)")
                 if arg == "volkey" { postVolumeKey() }
+                // lgmon://debug/volhold/800/down: holds a volume key for 800 ms
+                if arg == "volhold", parts.count > 2, let ms = Int(parts[2]) {
+                    let up = parts.count < 4 || parts[3] != "down"
+                    postVolumeKey(up: up, down: true)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms)) { self.postVolumeKey(up: up, down: false) }
+                }
             default: break
             }
         }
@@ -82,8 +91,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Synthetic volume-up press, to test the key path without touching the keyboard.
     private func postVolumeKey() {
-        for down in [true, false] {
-            let data1 = (0 << 16) | ((down ? 0xA : 0xB) << 8)
+        postVolumeKey(up: true, down: true)
+        postVolumeKey(up: true, down: false)
+    }
+
+    private func postVolumeKey(up: Bool, down: Bool) {
+        do {
+            let data1 = ((up ? 0 : 1) << 16) | ((down ? 0xA : 0xB) << 8)
             let ev = NSEvent.otherEvent(with: .systemDefined, location: .zero,
                                         modifierFlags: NSEvent.ModifierFlags(rawValue: down ? 0xA00 : 0xB00),
                                         timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1)
@@ -128,16 +142,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// 1 per tap; faster taps or a held key speed up to 2, then 3.
-    private func volumeStep() -> Int {
-        let now = Date()
-        volumeStreak = now.timeIntervalSince(lastVolumeKey) < 0.35 ? volumeStreak + 1 : 0
-        lastVolumeKey = now
-        switch volumeStreak {
-        case ..<4: return 1
-        case ..<10: return 2
-        default: return 3
+    /// A tap moves 5. Held, it repeats on its own and speeds up: 10 to 60 in about 0.8 s.
+    /// Ramp: first step at once, a short pause, then every 90 ms down to every 40 ms.
+    private func startVolume(_ dir: Int, fine: Bool) {
+        let step = dir * (fine ? 1 : 5)
+        stopVolume()
+        stepVolume(step)
+        var interval = 0.3
+        let started = Date()
+        func next() {
+            volumeHold = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.volumeHold != nil else { return }
+                    // safety if the key-up got lost: never ramp for more than 2.5 s
+                    guard Date().timeIntervalSince(started) < 2.5, self.stepVolume(step) else { self.stopVolume(); return }
+                    interval = interval >= 0.3 ? 0.09 : max(0.04, interval - 0.01)
+                    next()
+                }
+            }
         }
+        next()
+    }
+
+    private func stopVolume() {
+        volumeHold?.invalidate()
+        volumeHold = nil
+    }
+
+    /// False once the end of the range is reached.
+    @discardableResult
+    private func stepVolume(_ delta: Int) -> Bool {
+        guard let v = monitor.adjustVolume(by: delta) else { return false }
+        HUD.shared.showVolume(v, muted: false, on: SystemInfo.screenUnderMouse())
+        return v > 0 && v < 100
     }
 
     private func perform(_ action: KeyTap.Action) {
@@ -147,10 +184,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 HUD.shared.showBrightness(v, on: SystemInfo.screenUnderMouse())
             }
         case .volume(let dir, let fine):
-            // no indicator: the monitor shows its own
-            monitor.adjustVolume(by: dir * (fine ? 1 : volumeStep()))
+            startVolume(dir, fine: fine)
         case .mute:
             monitor.toggleMute()
+            if let v = monitor.volume { HUD.shared.showVolume(v, muted: monitor.muted, on: SystemInfo.screenUnderMouse()) }
         case .back:
             monitor.back()
         }

@@ -13,6 +13,8 @@ final class KeyTap {
     /// Decides what to do with a key; nil lets the event through untouched.
     var decide: ((Press) -> Action?)?
     var perform: ((Action) -> Void)?
+    /// A volume key went up: stops the hold-to-repeat ramp.
+    var released: (() -> Void)?
 
     enum Key {
         case brightnessUp, brightnessDown, soundUp, soundDown, mute
@@ -86,8 +88,12 @@ final class KeyTap {
         if UserDefaults.standard.bool(forKey: "debugKeys") {
             log("press \(press.key) down=\(press.down) -> \(action.map { "\($0)" } ?? "pass through")")
         }
+        if !press.down, press.key == .soundUp || press.key == .soundDown {
+            DispatchQueue.main.async { self.released?() }
+        }
         guard let action else { return false }
         if press.down {
+            if case .volume = action, press.isRepeat { return true }   // our own ramp repeats, faster
             if case .mute = action, press.isRepeat { return true }
             if case .back = action, press.isRepeat { return true }
             DispatchQueue.main.async { self.perform?(action) }

@@ -221,9 +221,12 @@ final class Monitor {
         flush()
     }
 
-    func adjustVolume(by delta: Int) {
-        guard let v = volume else { Task { await refresh() }; return }
+    /// Returns the new value immediately, for the on-screen indicator.
+    @discardableResult
+    func adjustVolume(by delta: Int) -> Int? {
+        guard let v = volume else { Task { await refresh() }; return nil }
         setVolume(v + delta)
+        return volume
     }
 
     func setVolume(_ value: Int) {
@@ -262,7 +265,8 @@ final class Monitor {
                 }
                 if let v = volumeTarget {
                     volumeTarget = nil
-                    _ = try? await run { try await $0.request("audio/setVolume", ["volume": v]) }
+                    let r = try? await run { try await $0.request("audio/setVolume", ["volume": v]) }
+                    if UserDefaults.standard.bool(forKey: "debugKeys") { log("sent volume \(v): \(r == nil ? "failed" : "ok")") }
                 }
             }
         }

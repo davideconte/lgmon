@@ -106,9 +106,15 @@ enum SystemInfo {
 // MARK: log
 
 /// ~/Library/Logs/lgmon.log, for troubleshooting.
+private let logStamp: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
 func log(_ message: String) {
     let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/lgmon.log")
-    let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
+    let line = "\(logStamp.string(from: Date())) \(message)\n"
     if let h = try? FileHandle(forWritingTo: url) {
         h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close()
     } else {

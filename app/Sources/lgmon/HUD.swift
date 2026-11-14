@@ -19,6 +19,17 @@ final class HUD {
     private let high = NSImageView()
     private var hideWork: DispatchWorkItem?
     private var visible = false
+    private var lastPercent = Date.distantPast
+    private var icons = ""
+
+    private func setIcons(_ lowName: String, _ highName: String) {
+        guard icons != lowName + highName else { return }
+        icons = lowName + highName
+        for (v, name, pt) in [(low, lowName, 11.0), (high, highName, 15.0)] {
+            v.image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(pointSize: pt, weight: .regular))
+        }
+    }
 
     private func makePanel() -> NSPanel {
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -40,11 +51,7 @@ final class HUD {
         percent.wantsLayer = true
         subtitle.font = .systemFont(ofSize: 12)
         subtitle.textColor = .secondaryLabelColor
-        for (v, name, pt) in [(low, "sun.min.fill", 11.0), (high, "sun.max.fill", 15.0)] {
-            v.image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                .withSymbolConfiguration(.init(pointSize: pt, weight: .regular))
-            v.contentTintColor = .secondaryLabelColor
-        }
+        [low, high].forEach { $0.contentTintColor = .secondaryLabelColor }
         title.frame = NSRect(x: 16, y: size.height - 30, width: size.width - 80, height: 18)
         // digits roll inside this clipping box, not over the sun icon
         percentBox.wantsLayer = true
@@ -84,7 +91,14 @@ final class HUD {
     }
 
     func showBrightness(_ value: Int, on screen: NSScreen?) {
+        setIcons("sun.min.fill", "sun.max.fill")
         show(on: screen, title: screen?.localizedName ?? "LG", subtitle: nil, value: value)
+    }
+
+    /// Follows the key at once: the value is local, the monitor catches up over the network.
+    func showVolume(_ value: Int, muted: Bool, on screen: NSScreen?) {
+        setIcons(muted ? "speaker.slash.fill" : "speaker.fill", "speaker.wave.3.fill")
+        show(on: screen, title: L.volume, subtitle: nil, value: muted ? 0 : value)
     }
 
     func showMessage(_ text: String, detail: String? = nil, seconds: Double = 2.5) {
@@ -118,7 +132,10 @@ final class HUD {
     private func setPercent(_ value: Int, animated: Bool) {
         let text = "\(value)%"
         guard percent.stringValue != text else { return }
-        if animated, let layer = percent.layer {
+        // while a key is held the digits change every few tens of ms: no rolling, or they lag behind
+        let rapid = Date().timeIntervalSince(lastPercent) < 0.12
+        lastPercent = Date()
+        if animated, !rapid, let layer = percent.layer {
             let t = CATransition()
             t.type = .push
             t.subtype = value > (Int(percent.stringValue.dropLast()) ?? 0) ? .fromTop : .fromBottom
