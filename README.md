@@ -46,7 +46,7 @@ That's it. lgmon starts at login and lives in the menu bar as a small sun.
 | <kbd>⌥</kbd> + volume up / down | Monitor brightness. Add <kbd>⇧</kbd> for fine steps |
 | <kbd>⌃</kbd><kbd>⌥</kbd><kbd>↑</kbd> / <kbd>↓</kbd> | Monitor brightness, for keyboards without media keys |
 | Brightness keys | Monitor brightness, when the pointer is on the LG screen (Apple keyboards) |
-| Volume keys, mute | The monitor's speakers, when your Mac sends audio to it (macOS can't change the volume over HDMI or DisplayPort by itself). 5 per tap; hold to sweep, 10 to 60 in under a second. Add <kbd>⌥⇧</kbd> for single steps. An on-screen indicator follows instantly |
+| Volume keys, mute | The monitor's speakers, when your Mac sends audio to it (macOS can't change the volume over HDMI or DisplayPort by itself). Up to 20 it moves 1 at a time (low volumes need fine control), above 20 it moves 5 and speeds up when you hold the key. Add <kbd>⌥⇧</kbd> for single steps everywhere. An on-screen indicator follows instantly |
 | <kbd>⌃</kbd><kbd>⌥</kbd><kbd>↩</kbd> | Back to the Mac's input, after you switched input or opened a monitor app |
 
 Each one can be turned off from **Settings** in the menu.

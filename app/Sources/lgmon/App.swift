@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case "wake": monitor.wake()
             case "menu": statusItem.button?.performClick(nil)
             case "debug":
-                log("audio output: \(SystemInfo.defaultOutputName() ?? "nil"), goes to monitor: \(SystemInfo.audioGoesToMonitor)")
+                log("audio output: \(SystemInfo.defaultOutputName() ?? "nil"), goes to monitor: \(SystemInfo.audioGoesToMonitor), volume: \(monitor.volume.map(String.init) ?? "?")")
                 if arg == "volkey" { postVolumeKey() }
                 // lgmon://debug/volhold/800/down: holds a volume key for 800 ms
                 if arg == "volhold", parts.count > 2, let ms = Int(parts[2]) {
@@ -142,21 +142,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// A tap moves 5. Held, it repeats on its own and speeds up: 10 to 60 in about 0.8 s.
-    /// Ramp: first step at once, a short pause, then every 90 ms down to every 40 ms.
+    /// Volume curve. Up to 20 (where the speakers are most sensitive) it moves 1 at a time,
+    /// tap or hold, at a calm steady pace. Above 20 a tap moves 5 and a held key speeds up.
+    static let volumeFineZone = 20
+
+    /// Step for one tick from the current value, never jumping across the 20 boundary.
+    private func volumeStep(_ dir: Int, fine: Bool) -> Int {
+        guard !fine, let v = monitor.volume else { return dir }
+        let edge = Self.volumeFineZone
+        if dir > 0 { return v < edge ? 1 : 5 }
+        return v <= edge ? -1 : -min(5, v - edge)
+    }
+
+    /// Held: first step at once, a pause, then up to 20 one step every 100 ms easing to 70 ms;
+    /// above 20 steps of 5 every 70 ms easing to 40 ms. 10 to 60 takes about 1.3 s, 1 to 15 about 1.5 s.
     private func startVolume(_ dir: Int, fine: Bool) {
-        let step = dir * (fine ? 1 : 5)
         stopVolume()
-        stepVolume(step)
-        var interval = 0.3
+        stepVolume(volumeStep(dir, fine: fine))
+        var interval = 0.35
+        var first = true
         let started = Date()
         func next() {
             volumeHold = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self, self.volumeHold != nil else { return }
-                    // safety if the key-up got lost: never ramp for more than 2.5 s
-                    guard Date().timeIntervalSince(started) < 2.5, self.stepVolume(step) else { self.stopVolume(); return }
-                    interval = interval >= 0.3 ? 0.09 : max(0.04, interval - 0.01)
+                    // safety if the key-up got lost: never ramp for more than 4 s
+                    guard Date().timeIntervalSince(started) < 4,
+                          self.stepVolume(self.volumeStep(dir, fine: fine)) else { self.stopVolume(); return }
+                    let low = fine || (self.monitor.volume ?? 0) < Self.volumeFineZone
+                    let (start, floor) = low ? (0.10, 0.07) : (0.07, 0.04)
+                    interval = first ? start : max(floor, min(interval, start) - 0.005)
+                    first = false
                     next()
                 }
             }
