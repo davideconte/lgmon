@@ -79,9 +79,16 @@ final class WebOSClient: NSObject, URLSessionWebSocketDelegate {
 
     func close() {
         isOpen = false
+        queue.async { self.tearDown() }
+        failAll(WebOSError.notConnected)
+    }
+
+    /// A URLSession keeps its delegate alive until invalidated: without this, every
+    /// attempt leaves a client and its session in memory. A client is single-use.
+    private func tearDown() {
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
-        failAll(WebOSError.notConnected)
+        session.invalidateAndCancel()
     }
 
     // MARK: requests
@@ -196,6 +203,7 @@ final class WebOSClient: NSObject, URLSessionWebSocketDelegate {
     private func connectionLost() {
         guard isOpen else { return }
         isOpen = false
+        tearDown()
         failAll(WebOSError.notConnected)
     }
 

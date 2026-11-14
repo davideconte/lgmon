@@ -120,9 +120,14 @@ final class Monitor {
             self?.status = .pairing
             self?.onPairingPrompt?()
         }
-        let key = try await c.connect()
-        Store.setKey(key, for: d)
-        return c
+        do {
+            let key = try await c.connect()
+            Store.setKey(key, for: d)
+            return c
+        } catch {
+            c.close()
+            throw error
+        }
     }
 
     /// Runs a command, reconnecting once if the socket died (standby, Wi-Fi hiccup).
